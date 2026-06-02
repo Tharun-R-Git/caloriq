@@ -1,0 +1,37 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/test_gate.py"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "write_file|str_replace_editor|create_file",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/env_guard.py"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "write_file|str_replace_editor|create_file",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/auto_lint.py"
+          }
+        ]
+      }
+    ]
+  }
+}
