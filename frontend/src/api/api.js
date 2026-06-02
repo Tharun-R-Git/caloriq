@@ -14,6 +14,9 @@ async function request(path, options = {}) {
 export const analyzeFood = (name, description) =>
   request('/food/analyze', { method: 'POST', body: JSON.stringify({ name, description }) })
 
+export const analyzeFoodPhoto = (imageBase64, mimeType) =>
+  request('/food/analyze-photo', { method: 'POST', body: JSON.stringify({ image_base64: imageBase64, mime_type: mimeType }) })
+
 // Food — logging
 export const logFood = (entry) =>
   request('/food/log', { method: 'POST', body: JSON.stringify(entry) })

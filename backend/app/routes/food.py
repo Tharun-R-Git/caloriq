@@ -7,6 +7,7 @@ from app.db import get_db
 from app.models.food_entry import FoodEntry
 from app.schemas.food_entry import (
     FoodAnalyzeRequest, FoodAnalyzeResponse,
+    FoodPhotoAnalyzeRequest, FoodPhotoAnalyzeResponse,
     FoodLogRequest, FoodEntryRead,
 )
 from app.services.gemini_service import GeminiService
@@ -17,11 +18,13 @@ router = APIRouter()
 @router.post("/analyze", response_model=FoodAnalyzeResponse)
 async def analyze_food(req: FoodAnalyzeRequest):
     svc = GeminiService()
-    try:
-        result = await svc.analyze_food(req.name, req.description)
-        return result
-    except Exception:
-        return svc._mock_analyze(req.name)
+    return await svc.analyze_food(req.name, req.description)
+
+
+@router.post("/analyze-photo", response_model=FoodPhotoAnalyzeResponse)
+async def analyze_food_photo(req: FoodPhotoAnalyzeRequest):
+    svc = GeminiService()
+    return await svc.analyze_food_photo(req.image_base64, req.mime_type)
 
 
 @router.post("/log", response_model=FoodEntryRead, status_code=201)
