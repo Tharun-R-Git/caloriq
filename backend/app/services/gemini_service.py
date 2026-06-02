@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import json
 import logging
 import os
@@ -9,9 +10,11 @@ logger = logging.getLogger(__name__)
 
 try:
     from google import genai
+    from google.genai import types as genai_types
     _GENAI_AVAILABLE = True
 except ImportError:
     genai = None
+    genai_types = None
     _GENAI_AVAILABLE = False
 
 
@@ -82,6 +85,63 @@ class GeminiService:
         except Exception as exc:
             logger.warning("Gemini analyze_food failed for %r: %s", name, exc)
             return self._mock_analyze(name)
+
+    def _call_gemini_vision(self, image_base64: str, mime_type: str, prompt: str) -> str:
+        image_bytes = base64.b64decode(image_base64)
+        part_image = genai_types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
+        part_text = genai_types.Part.from_text(text=prompt)
+        response = self.client.models.generate_content(
+            model="gemini-1.5-flash",
+            contents=[part_image, part_text],
+            config={"timeout": 15},
+        )
+        return response.text
+
+    def _mock_analyze_photo(self) -> dict[str, Any]:
+        return {
+            "calories": 350,
+            "protein_g": 12.0,
+            "carbs_g": 45.0,
+            "fat_g": 10.0,
+            "food_name": "Mixed food plate",
+            "serving_size": "1 plate",
+            "confidence": 0.0,
+            "items_detected": ["food item"],
+        }
+
+    async def analyze_food_photo(self, image_base64: str, mime_type: str) -> dict[str, Any]:
+        if not self.client:
+            return self._mock_analyze_photo()
+
+        prompt = (
+            "Analyze this food image and return ONLY a JSON object with these exact keys: "
+            "calories (int), protein_g (float), carbs_g (float), fat_g (float), "
+            "food_name (str), serving_size (str), confidence (float 0-1), "
+            "items_detected (list of strings for each food item you can see). "
+            "Return only valid JSON, no markdown, no explanation."
+        )
+
+        try:
+            text = await asyncio.to_thread(self._call_gemini_vision, image_base64, mime_type, prompt)
+            text = text.strip()
+            text = re.sub(r'^```(?:json)?\s*\n?', '', text)
+            text = re.sub(r'\n?```\s*$', '', text)
+            text = text.strip()
+            data = json.loads(text)
+            confidence = float(data.get("confidence", 0.5))
+            return {
+                "calories": int(data["calories"]),
+                "protein_g": float(data.get("protein_g", 0)),
+                "carbs_g": float(data.get("carbs_g", 0)),
+                "fat_g": float(data.get("fat_g", 0)),
+                "food_name": str(data.get("food_name", "Unknown food")),
+                "serving_size": str(data.get("serving_size", "")),
+                "confidence": max(0.0, min(1.0, confidence)),
+                "items_detected": list(data.get("items_detected", [])),
+            }
+        except Exception as exc:
+            logger.warning("Gemini analyze_food_photo failed: %s", exc)
+            return self._mock_analyze_photo()
 
     async def get_meal_ideas(self, calorie_target: int, dietary_preferences: list[str]) -> list[dict]:
         # TODO: generate meal suggestions using Gemini
