@@ -71,7 +71,7 @@ async def test_analyze_food_missing_name(client):
 async def test_analyze_food_gemini_failure_returns_mock(client):
     # Mock the internal sync call so the service's own try/except fallback fires
     with patch(
-        "app.services.gemini_service.GeminiService._call_gemini",
+        "app.services.gemini_service.GeminiService._call_mistral",
         side_effect=Exception("quota exceeded"),
     ):
         resp = await client.post("/api/food/analyze", json={"name": "pizza"})
