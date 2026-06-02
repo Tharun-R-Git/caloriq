@@ -5,6 +5,7 @@ from sqlalchemy import select, func, desc
 from app.models.food_entry import FoodEntry
 from app.models.exercise_entry import ExerciseEntry
 from app.routes.profile import get_or_create_user
+from app.schemas.analytics import DailyResponse, TrendDay
 
 
 async def get_daily_summary(db: AsyncSession) -> dict:
@@ -71,3 +72,81 @@ async def get_daily_summary(db: AsyncSession) -> dict:
         "fat_g": round(float(fat_g), 1),
         "recent_foods": recent_foods,
     }
+
+
+async def get_daily_for_date(db: AsyncSession, date: datetime.date) -> DailyResponse:
+    food_res = await db.execute(
+        select(
+            func.coalesce(func.sum(FoodEntry.calories), 0),
+            func.coalesce(func.sum(FoodEntry.protein_g), 0),
+            func.coalesce(func.sum(FoodEntry.carbs_g), 0),
+            func.coalesce(func.sum(FoodEntry.fat_g), 0),
+        ).where(FoodEntry.date == date)
+    )
+    cal, protein, carbs, fat = food_res.one()
+
+    ex_res = await db.execute(
+        select(func.coalesce(func.sum(ExerciseEntry.calories_burned), 0)).where(ExerciseEntry.date == date)
+    )
+    burned = ex_res.scalar()
+
+    user = await get_or_create_user(db)
+
+    return DailyResponse(
+        date=date,
+        calories_in=round(float(cal), 1),
+        calories_burned=round(float(burned), 1),
+        protein_g=round(float(protein), 1),
+        carbs_g=round(float(carbs), 1),
+        fat_g=round(float(fat), 1),
+        goal=user.goal_calories or 2000,
+    )
+
+
+async def get_trends(db: AsyncSession, days: int) -> list[TrendDay]:
+    today = datetime.date.today()
+    start = today - datetime.timedelta(days=days - 1)
+
+    food_rows = await db.execute(
+        select(
+            FoodEntry.date,
+            func.coalesce(func.sum(FoodEntry.calories), 0).label("calories_in"),
+            func.coalesce(func.sum(FoodEntry.protein_g), 0).label("protein_g"),
+            func.coalesce(func.sum(FoodEntry.carbs_g), 0).label("carbs_g"),
+            func.coalesce(func.sum(FoodEntry.fat_g), 0).label("fat_g"),
+        ).where(FoodEntry.date >= start).group_by(FoodEntry.date)
+    )
+    food_by_date = {row.date: row for row in food_rows.all()}
+
+    ex_rows = await db.execute(
+        select(
+            ExerciseEntry.date,
+            func.coalesce(func.sum(ExerciseEntry.calories_burned), 0).label("calories_burned"),
+        ).where(ExerciseEntry.date >= start).group_by(ExerciseEntry.date)
+    )
+    ex_by_date = {row.date: row for row in ex_rows.all()}
+
+    user = await get_or_create_user(db)
+    goal = user.goal_calories or 2000
+
+    result = []
+    for i in range(days):
+        d = start + datetime.timedelta(days=i)
+        food = food_by_date.get(d)
+        ex = ex_by_date.get(d)
+
+        cal_in = round(float(food.calories_in), 1) if food else 0.0
+        cal_burned = round(float(ex.calories_burned), 1) if ex else 0.0
+
+        result.append(TrendDay(
+            date=str(d),
+            calories_in=cal_in,
+            calories_burned=cal_burned,
+            net=round(cal_in - cal_burned, 1),
+            protein_g=round(float(food.protein_g), 1) if food else 0.0,
+            carbs_g=round(float(food.carbs_g), 1) if food else 0.0,
+            fat_g=round(float(food.fat_g), 1) if food else 0.0,
+            goal=goal,
+        ))
+
+    return result

@@ -1,3 +1,4 @@
+import datetime
 from pydantic import BaseModel
 
 
@@ -19,3 +20,24 @@ class DailySummaryResponse(BaseModel):
     carbs_g: float
     fat_g: float
     recent_foods: list[RecentFood]
+
+
+class DailyResponse(BaseModel):
+    date: datetime.date
+    calories_in: float
+    calories_burned: float
+    protein_g: float
+    carbs_g: float
+    fat_g: float
+    goal: int
+
+
+class TrendDay(BaseModel):
+    date: datetime.date
+    calories_in: float
+    calories_burned: float
+    net: float
+    protein_g: float
+    carbs_g: float
+    fat_g: float
+    goal: int
