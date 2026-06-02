@@ -1,5 +1,5 @@
 from dotenv import load_dotenv
-load_dotenv()  # load before any os.getenv() calls
+load_dotenv()  # no-op if .env is absent (production)
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -17,9 +17,19 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="CaloriQ API", version="0.1.0", lifespan=lifespan)
 
+import os
+_EXTRA_ORIGIN = os.getenv("FRONTEND_URL", "")
+_ORIGINS = [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:5175",
+]
+if _EXTRA_ORIGIN:
+    _ORIGINS.append(_EXTRA_ORIGIN)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
