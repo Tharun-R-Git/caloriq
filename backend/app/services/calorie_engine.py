@@ -2,6 +2,39 @@ from datetime import datetime
 import random
 
 
+def calculate_daily_goal(user) -> dict:
+    """Compute BMR, TDEE, daily calorie goal and macro targets from a User object."""
+    if not all([user.age, user.gender, user.height_cm, user.weight_kg, user.activity_level]):
+        return {
+            "bmr": 0.0,
+            "tdee": 0.0,
+            "daily_goal": 2000,
+            "protein_goal_g": 150.0,
+            "carbs_goal_g": 225.0,
+            "fat_goal_g": 56.0,
+        }
+
+    engine = CalorieEngine()
+    bmr = engine.calculate_bmr(user.weight_kg, user.height_cm, user.age, user.gender)
+    tdee = engine.calculate_tdee(bmr, user.activity_level)
+    aim = user.aim or "maintain"
+    daily_goal = engine.suggest_goal(float(tdee), aim)
+
+    # Macro split: protein 30 % (4 kcal/g), carbs 45 % (4 kcal/g), fat 25 % (9 kcal/g)
+    protein_goal_g = round((daily_goal * 0.30) / 4, 1)
+    carbs_goal_g = round((daily_goal * 0.45) / 4, 1)
+    fat_goal_g = round((daily_goal * 0.25) / 9, 1)
+
+    return {
+        "bmr": round(float(bmr), 1),
+        "tdee": round(float(tdee), 1),
+        "daily_goal": daily_goal,
+        "protein_goal_g": protein_goal_g,
+        "carbs_goal_g": carbs_goal_g,
+        "fat_goal_g": fat_goal_g,
+    }
+
+
 def estimate_weekly_deficit(
     current_weight_kg,
     goal_weight_kg,
@@ -56,7 +89,7 @@ class CalorieEngine:
     def calculate_bmr(
         self, weight_kg: float, height_cm: float, age: int, gender: str = "male"
     ) -> float:
-        # Harris-Benedict revised
+        # Harris-Benedict revised; "other" uses male formula
         if gender == "female":
             return 447.6 + (9.25 * weight_kg) + (3.1 * height_cm) - (4.3 * age)
         return 88.36 + (13.4 * weight_kg) + (5.0 * height_cm) - (5.7 * age)
@@ -66,7 +99,6 @@ class CalorieEngine:
         return round(bmr * multiplier)
 
     def suggest_goal(self, tdee: float, goal: str = "maintain") -> int:
-        # TODO: support gradual loss/gain rates (e.g. 0.5kg/week)
         offsets = {"lose": -500, "maintain": 0, "gain": 300}
         return int(tdee + offsets.get(goal, 0))
 

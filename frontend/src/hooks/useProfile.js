@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getProfile, updateProfile } from '../api/api'
+import { getProfile, setupProfile, updateProfile } from '../api/api'
 
 export function useProfile() {
   const [profile, setProfile] = useState(null)
@@ -20,5 +20,11 @@ export function useProfile() {
     return updated
   }
 
-  return { profile, loading, error, save }
+  const setup = async (data) => {
+    const updated = await setupProfile(data)
+    setProfile(updated)
+    return updated
+  }
+
+  return { profile, loading, error, save, setup }
 }
