@@ -21,9 +21,12 @@ async def get_weight(db: AsyncSession) -> float:
 
 async def log_exercise(db: AsyncSession, req: ExerciseLogRequest) -> ExerciseEntry:
     weight_kg = await get_weight(db)
-    calories = _engine.calculate_exercise_calories(
-        req.name, req.intensity, req.duration_minutes, weight_kg
-    )
+    if req.calories_burned_override is not None:
+        calories = req.calories_burned_override
+    else:
+        calories = _engine.calculate_exercise_calories(
+            req.name, req.intensity, req.duration_minutes, weight_kg
+        )
     entry = ExerciseEntry(
         name=req.name,
         duration_minutes=req.duration_minutes,

@@ -83,6 +83,15 @@ async def get_history(db: AsyncSession = Depends(get_db)):
     ]
 
 
+@router.get("", response_model=list[FoodEntryRead])
+async def get_food_entries(date: datetime.date = None, db: AsyncSession = Depends(get_db)):
+    query = select(FoodEntry)
+    if date:
+        query = query.where(FoodEntry.date == date)
+    result = await db.execute(query.order_by(FoodEntry.logged_at.desc()))
+    return result.scalars().all()
+
+
 @router.delete("/{entry_id}", status_code=204)
 async def delete_food_entry(entry_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(FoodEntry).where(FoodEntry.id == entry_id))

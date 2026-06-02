@@ -37,6 +37,8 @@ export const addExerciseEntry = (data) => request('/exercise', { method: 'POST',
 export const deleteExerciseEntry = (id) => request(`/exercise/${id}`, { method: 'DELETE' })
 
 // Exercise — new routes
+export const analyzeExercise = (description, duration_minutes) =>
+  request('/exercise/analyze', { method: 'POST', body: JSON.stringify({ description, duration_minutes }) })
 export const logExercise = (data) => request('/exercise/log', { method: 'POST', body: JSON.stringify(data) })
 export const getTodayExercise = () => request('/exercise/today')
 export const deleteExercise = (id) => request(`/exercise/${id}`, { method: 'DELETE' })
@@ -57,4 +59,5 @@ export const getTrends = (days = 30) => request(`/analytics/trends?days=${days}`
 export const getAISuggestions = () => request('/ai/suggestions')
 
 // AI meal recommendations
-export const getRecommendations = () => request('/ai/recommendations')
+export const getRecommendations = (meal_source = 'home') =>
+  request(`/ai/recommendations?meal_source=${meal_source}`)

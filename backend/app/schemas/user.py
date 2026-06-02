@@ -12,6 +12,8 @@ class ProfileSetup(BaseModel):
     weight_kg: float
     activity_level: Literal["sedentary", "light", "moderate", "active", "very_active"]
     aim: Literal["lose", "maintain", "gain"]
+    dietary_preference: Optional[Literal["veg", "non_veg", "eggetarian"]] = None
+    cuisine_preferences: Optional[list[str]] = None
 
     @field_validator("age")
     @classmethod
@@ -45,6 +47,8 @@ class UserUpdate(BaseModel):
     activity_level: Optional[Literal["sedentary", "light", "moderate", "active", "very_active"]] = None
     aim: Optional[Literal["lose", "maintain", "gain"]] = None
     goal_calories: Optional[int] = None
+    dietary_preference: Optional[Literal["veg", "non_veg", "eggetarian"]] = None
+    cuisine_preferences: Optional[list[str]] = None
 
 
 class GoalsResponse(BaseModel):
@@ -69,6 +73,8 @@ class UserProfileResponse(BaseModel):
     goal_calories: int
     is_setup: bool
     goals: Optional[GoalsResponse] = None
+    dietary_preference: Optional[str] = None
+    cuisine_preferences: Optional[list[str]] = None
 
 
 # Kept for backward compatibility with analytics schemas

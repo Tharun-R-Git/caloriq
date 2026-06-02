@@ -57,7 +57,26 @@ const AIM_OPTIONS = [
   { value: 'gain',     icon: '📈', label: 'Gain Muscle',  desc: '+300 kcal/day',  ring: 'border-orange-400 bg-orange-50', check: 'text-orange-500' },
 ]
 
-const STEP_TITLES = ['Basic Info', 'Body Metrics', 'Activity Level', 'Your Goal', 'Summary']
+const DIETARY_OPTIONS = [
+  { value: 'veg',        label: 'Vegetarian',    icon: '🥦' },
+  { value: 'eggetarian', label: 'Eggetarian',    icon: '🥚' },
+  { value: 'non_veg',   label: 'Non-Vegetarian', icon: '🍗' },
+]
+
+const CUISINE_OPTIONS = [
+  { value: 'north_indian',  label: 'North Indian' },
+  { value: 'south_indian',  label: 'South Indian' },
+  { value: 'chinese',       label: 'Chinese' },
+  { value: 'italian',       label: 'Italian' },
+  { value: 'mediterranean', label: 'Mediterranean' },
+  { value: 'continental',   label: 'Continental' },
+  { value: 'mexican',       label: 'Mexican' },
+  { value: 'thai',          label: 'Thai' },
+  { value: 'japanese',      label: 'Japanese' },
+  { value: 'street_food',   label: 'Street Food' },
+]
+
+const STEP_TITLES = ['Basic Info', 'Food Preferences', 'Body Metrics', 'Activity Level', 'Your Goal', 'Summary']
 
 // ── Step sub-components ───────────────────────────────────────────────────────
 
@@ -109,6 +128,51 @@ function Step1({ form, set }) {
 }
 
 function Step2({ form, set }) {
+  const toggleCuisine = (val) => {
+    const current = form.cuisine_preferences || []
+    const updated = current.includes(val) ? current.filter(c => c !== val) : [...current, val]
+    set('cuisine_preferences', updated)
+  }
+  return (
+    <div className="space-y-5">
+      <div>
+        <label className="block text-sm font-medium text-gray-600 mb-2">Dietary Preference</label>
+        <div className="grid grid-cols-3 gap-2">
+          {DIETARY_OPTIONS.map(opt => (
+            <button key={opt.value} type="button" onClick={() => set('dietary_preference', opt.value)}
+              className={`flex flex-col items-center gap-1 py-3 rounded-xl text-xs font-medium transition-colors ${
+                form.dietary_preference === opt.value ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}>
+              <span className="text-xl">{opt.icon}</span>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-600 mb-2">Cuisine Preferences <span className="text-gray-400 font-normal">(pick any)</span></label>
+        <div className="flex flex-wrap gap-2">
+          {CUISINE_OPTIONS.map(opt => {
+            const selected = (form.cuisine_preferences || []).includes(opt.value)
+            return (
+              <button key={opt.value} type="button" onClick={() => toggleCuisine(opt.value)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                  selected ? 'bg-green-500 text-white border-green-500' : 'bg-white text-gray-600 border-gray-200 hover:border-green-300'
+                }`}>
+                {opt.label}
+              </button>
+            )
+          })}
+        </div>
+        {(form.cuisine_preferences || []).length === 0 && (
+          <p className="text-xs text-gray-400 mt-1">Skip to get general recommendations</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function Step3({ form, set }) {
   return (
     <div className="space-y-7">
       <div>
@@ -159,7 +223,7 @@ function Step2({ form, set }) {
   )
 }
 
-function Step3({ form, set }) {
+function Step4({ form, set }) {
   return (
     <div className="space-y-2">
       {ACTIVITY_OPTIONS.map(opt => (
@@ -187,7 +251,7 @@ function Step3({ form, set }) {
   )
 }
 
-function Step4({ form, set }) {
+function Step5({ form, set }) {
   return (
     <div className="space-y-3">
       {AIM_OPTIONS.map(opt => (
@@ -217,7 +281,7 @@ function Step4({ form, set }) {
   )
 }
 
-function Step5({ form }) {
+function Step6({ form }) {
   const goals = localCalcGoals(form)
   return (
     <div className="space-y-4">
@@ -283,6 +347,7 @@ function ProfileView({ profile, onEdit }) {
           <h1 className="text-xl font-bold text-gray-900">{profile.name || 'Profile'}</h1>
           <p className="text-sm text-gray-400 mt-0.5 capitalize">
             {profile.gender} · {profile.age} yrs · {aimOpt?.label || profile.aim}
+            {profile.dietary_preference && ` · ${profile.dietary_preference.replace('_', '-')}`}
           </p>
         </div>
         <button
@@ -375,6 +440,8 @@ export default function ProfilePage() {
     weight_kg: 70,
     activity_level: 'moderate',
     aim: 'maintain',
+    dietary_preference: null,
+    cuisine_preferences: [],
   })
   const [saving, setSaving] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -394,6 +461,8 @@ export default function ProfilePage() {
             weight_kg: p.weight_kg ?? 70,
             activity_level: p.activity_level || 'moderate',
             aim: p.aim || 'maintain',
+            dietary_preference: p.dietary_preference || null,
+            cuisine_preferences: p.cuisine_preferences || [],
           })
         }
       })
@@ -420,6 +489,8 @@ export default function ProfilePage() {
         weight_kg: Number(form.weight_kg),
         activity_level: form.activity_level,
         aim: form.aim,
+        dietary_preference: form.dietary_preference || null,
+        cuisine_preferences: form.cuisine_preferences || [],
       }
       const updated = await setupProfile(payload)
       setProfile(updated)
@@ -449,7 +520,7 @@ export default function ProfilePage() {
     )
   }
 
-  const progressPct = (step / 5) * 100
+  const progressPct = (step / 6) * 100
 
   return (
     <div className="max-w-md mx-auto px-4 pt-6 pb-24 space-y-5">
@@ -459,7 +530,7 @@ export default function ProfilePage() {
           {editing ? 'Edit Profile' : 'Set Up Your Profile'}
         </h1>
         <p className="text-sm text-gray-400 mt-0.5">
-          Step {step} of 5 — {STEP_TITLES[step - 1]}
+          Step {step} of 6 — {STEP_TITLES[step - 1]}
         </p>
       </div>
 
@@ -478,7 +549,8 @@ export default function ProfilePage() {
         {step === 2 && <Step2 form={form} set={set} />}
         {step === 3 && <Step3 form={form} set={set} />}
         {step === 4 && <Step4 form={form} set={set} />}
-        {step === 5 && <Step5 form={form} />}
+        {step === 5 && <Step5 form={form} set={set} />}
+        {step === 6 && <Step6 form={form} />}
       </div>
 
       {/* Navigation */}
@@ -491,7 +563,7 @@ export default function ProfilePage() {
             Back
           </button>
         )}
-        {step < 5 ? (
+        {step < 6 ? (
           <button
             onClick={() => setStep(s => s + 1)}
             disabled={!canNext()}

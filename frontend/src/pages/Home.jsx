@@ -47,6 +47,7 @@ export default function Home() {
   const [recs, setRecs] = useState(null)
   const [recsLoading, setRecsLoading] = useState(false)
   const [loggingRec, setLoggingRec] = useState(null)
+  const [mealSource, setMealSource] = useState('home')
 
   const today = new Date().toLocaleDateString('en-GB', {
     weekday: 'long', day: 'numeric', month: 'long',
@@ -83,17 +84,17 @@ export default function Home() {
     }
   }
 
-  const fetchRecs = useCallback(async () => {
+  const fetchRecs = useCallback(async (source) => {
     setRecsLoading(true)
     try {
-      const result = await getRecommendations()
+      const result = await getRecommendations(source || mealSource)
       setRecs(result)
     } catch (e) {
       console.error(e)
     } finally {
       setRecsLoading(false)
     }
-  }, [])
+  }, [mealSource])
 
   const logRec = async (rec) => {
     setLoggingRec(rec.name)
@@ -239,9 +240,31 @@ export default function Home() {
           )}
         </div>
 
+        {/* Home / Restaurant toggle */}
+        <div className="flex rounded-xl bg-gray-100 p-1 gap-1">
+          {[
+            { value: 'home',       label: '🏠 Home Cooking' },
+            { value: 'restaurant', label: '🍽️ Restaurant' },
+          ].map(opt => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => {
+                setMealSource(opt.value)
+                setRecs(null)
+              }}
+              className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                mealSource === opt.value ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
         {!recs && (
           <button
-            onClick={fetchRecs}
+            onClick={() => fetchRecs(mealSource)}
             disabled={recsLoading}
             className="w-full py-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 active:bg-indigo-200 transition-colors text-indigo-700 text-sm font-semibold disabled:opacity-50"
           >
@@ -254,6 +277,15 @@ export default function Home() {
                 Asking AI…
               </span>
             ) : 'Ask AI for suggestions'}
+          </button>
+        )}
+
+        {recs && !recsLoading && (
+          <button
+            onClick={() => fetchRecs(mealSource)}
+            className="text-xs text-indigo-500 hover:text-indigo-700 font-medium text-right w-full"
+          >
+            Refresh suggestions ↺
           </button>
         )}
 
@@ -270,7 +302,7 @@ export default function Home() {
         {recs && !recsLoading && (
           <>
             {recs.message && (
-              <p className="text-xs text-gray-400 mb-3">{recs.message}</p>
+              <p className={`text-xs mb-3 ${recs.over_goal ? 'text-red-500 font-medium' : 'text-gray-400'}`}>{recs.message}</p>
             )}
             <div className="space-y-3">
               {recs.recommendations.map((rec) => (
@@ -312,6 +344,23 @@ export default function Home() {
                 </div>
               ))}
             </div>
+
+            {recs.exercise_suggestions && recs.exercise_suggestions.length > 0 && (
+              <div className="mt-4 space-y-2">
+                <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Burn it off</p>
+                {recs.exercise_suggestions.map((ex) => (
+                  <div key={ex.name} className="rounded-xl border border-blue-100 bg-blue-50 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800">{ex.name}</p>
+                        <p className="text-xs text-gray-500">{ex.duration_minutes} min · {ex.calories_burned} kcal burned</p>
+                      </div>
+                    </div>
+                    {ex.reason && <p className="text-xs text-gray-400 mt-1">{ex.reason}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
           </>
         )}
       </div>

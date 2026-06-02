@@ -6,7 +6,7 @@ CaloriQ is a personal calorie tracking web app. Mobile-first (max-w-md mx-auto o
 
 - **Frontend**: React 18 + Vite, port 5173 (`frontend/`)
 - **Backend**: FastAPI + async SQLAlchemy + SQLite (aiosqlite), port 8000 (`backend/`)
-- **AI**: Gemini 1.5 Flash for food calorie lookup and (Phase 6) photo analysis
+- **AI**: Mistral AI (`mistral-small-latest`) for food calorie lookup and (Phase 6) photo analysis
 - **DB file**: `backend/caloriq.db` — never commit this
 
 ---
@@ -17,7 +17,7 @@ CaloriQ is a personal calorie tracking web app. Mobile-first (max-w-md mx-auto o
 - All backend business logic goes in `app/services/`. Routes only handle HTTP concerns (parse request, call service, return response).
 - Never put business logic in routes or models.
 - All new SQLAlchemy models need a matching Pydantic schema in `app/schemas/`.
-- `GEMINI_API_KEY` lives in `backend/.env` only — never hardcode it anywhere.
+- `MISTRAL_API_KEY` lives in `backend/.env` only — never hardcode it anywhere.
 - `backend/caloriq.db` is gitignored — never commit it.
 
 ---
@@ -67,12 +67,12 @@ All of the above lives in `app/services/calorie_engine.py`. Do not reimplement t
 
 ---
 
-## Gemini usage
+## Mistral AI usage
 
-- **Model**: `gemini-1.5-flash` (free tier)
+- **Model**: `mistral-small-latest` (text); `pixtral-12b-2409` (vision/photo)
 - **Used for**: food calorie lookup by name/description; photo analysis (Phase 6)
-- **All Gemini calls** go through `app/services/gemini_service.py` — nowhere else
-- **Always request JSON** from Gemini using this schema:
+- **All AI calls** go through `app/services/gemini_service.py` — nowhere else (filename kept for import compatibility)
+- **Always request JSON** using this schema:
 
 ```json
 {
@@ -119,4 +119,4 @@ All of the above lives in `app/services/calorie_engine.py`. Do not reimplement t
 | 5 | Trends charts + history | ⬜ Not started |
 | 6 | Photo analysis (Gemini vision) | ⬜ Not started |
 
-**Gemini API key**: not yet configured — add `GEMINI_API_KEY=...` to `backend/.env`.
+**Mistral API key**: add `MISTRAL_API_KEY=...` to `backend/.env`. Get a free key at https://console.mistral.ai.

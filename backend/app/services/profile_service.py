@@ -26,6 +26,18 @@ def is_setup(user: User) -> bool:
     ])
 
 
+def cuisine_to_list(raw: str | None) -> list[str]:
+    if not raw:
+        return []
+    return [c for c in raw.split("|") if c]
+
+
+def list_to_cuisine(cuisines: list[str] | None) -> str | None:
+    if not cuisines:
+        return None
+    return "|".join(cuisines)
+
+
 def build_profile_response(user: User) -> dict:
     setup = is_setup(user)
     return {
@@ -41,4 +53,6 @@ def build_profile_response(user: User) -> dict:
         "goal_calories": user.goal_calories or 2000,
         "is_setup": setup,
         "goals": calculate_daily_goal(user) if setup else None,
+        "dietary_preference": user.dietary_preference,
+        "cuisine_preferences": cuisine_to_list(user.cuisine_preferences),
     }

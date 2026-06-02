@@ -5,11 +5,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_db
 from app.schemas.exercise_entry import (
     ExerciseEntryRead,
+    ExerciseAnalyzeRequest, ExerciseAnalyzeResponse,
     ExerciseLogRequest, ExerciseLogResponse, TodayExerciseResponse,
 )
+from app.services.gemini_service import GeminiService
 import app.services.exercise_service as svc
 
 router = APIRouter()
+
+
+@router.post("/analyze", response_model=ExerciseAnalyzeResponse)
+async def analyze_exercise(req: ExerciseAnalyzeRequest, db: AsyncSession = Depends(get_db)):
+    try:
+        weight_kg = await svc.get_weight(db)
+        ai = GeminiService()
+        return await ai.analyze_exercise(req.description, req.duration_minutes, weight_kg)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @router.post("/log", response_model=ExerciseLogResponse, status_code=201)

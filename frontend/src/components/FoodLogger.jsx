@@ -2,9 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { analyzeFood, analyzeFoodPhoto, logFood, getTodayFood, deleteFood } from '../api/api'
 
 function Spinner() {
-  return (
-    <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-  )
+  return <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
 }
 
 function ConfidenceBadge({ value }) {
@@ -32,13 +30,9 @@ function AnalysisCard({ result, onLog, logging }) {
         </p>
         <ConfidenceBadge value={result.confidence} />
       </div>
-      {result.food_name && (
-        <p className="text-xs text-gray-500">{result.serving_size}</p>
-      )}
+      {result.food_name && <p className="text-xs text-gray-500">{result.serving_size}</p>}
       {result.items_detected && result.items_detected.length > 0 && (
-        <p className="text-xs text-gray-500">
-          Detected: {result.items_detected.join(', ')}
-        </p>
+        <p className="text-xs text-gray-500">Detected: {result.items_detected.join(', ')}</p>
       )}
       <div className="flex justify-around">
         <MacroChip label="Calories" value={result.calories} unit="kcal" color="text-orange-500" />
@@ -79,10 +73,7 @@ function TodayList({ entries, onDelete, total }) {
                 {e.serving_size && <span className="ml-1 text-gray-300">· {e.serving_size}</span>}
               </p>
             </div>
-            <button
-              onClick={() => onDelete(e.id)}
-              className="ml-3 text-xs text-red-400 hover:text-red-600 font-medium shrink-0"
-            >
+            <button onClick={() => onDelete(e.id)} className="ml-3 text-xs text-red-400 hover:text-red-600 font-medium shrink-0">
               Remove
             </button>
           </li>
@@ -92,11 +83,17 @@ function TodayList({ entries, onDelete, total }) {
   )
 }
 
-function TextTab({ onResult }) {
+function TextTab({ onResult, resetKey }) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
   const [error, setError] = useState(null)
+
+  useEffect(() => {
+    setName('')
+    setDescription('')
+    setError(null)
+  }, [resetKey])
 
   const handleAnalyze = async (e) => {
     e.preventDefault()
@@ -107,7 +104,7 @@ function TextTab({ onResult }) {
       const data = await analyzeFood(name.trim(), description.trim() || undefined)
       onResult({ data, logName: name.trim(), logDescription: description.trim() || null })
     } catch (err) {
-      const msg = err.message || 'Gemini analysis failed'
+      const msg = err.message || 'AI analysis failed'
       try { setError(JSON.parse(msg).detail || msg) } catch { setError(msg) }
     } finally {
       setAnalyzing(false)
@@ -116,15 +113,13 @@ function TextTab({ onResult }) {
 
   return (
     <form onSubmit={handleAnalyze} className="space-y-3">
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-600">{error}</div>
-      )}
+      {error && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-600">{error}</div>}
       <input
         required
         className="input"
         placeholder="e.g. chicken biryani 1 plate"
         value={name}
-        onChange={(e) => { setName(e.target.value) }}
+        onChange={(e) => setName(e.target.value)}
       />
       <textarea
         className="input resize-none"
@@ -138,7 +133,7 @@ function TextTab({ onResult }) {
         disabled={analyzing || !name.trim()}
         className="w-full bg-indigo-500 text-white py-2 rounded-xl font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-50 active:bg-indigo-600"
       >
-        {analyzing ? <><Spinner /> Analyzing…</> : '✨ Analyze with Gemini'}
+        {analyzing ? <><Spinner /> Analyzing…</> : '✨ Analyze with AI'}
       </button>
     </form>
   )
@@ -154,36 +149,17 @@ function PhotoTab({ onResult }) {
   const fileInputRef = useRef(null)
 
   const processFile = (file) => {
-    if (!file || !file.type.startsWith('image/')) {
-      setError('Please select a JPEG or PNG image.')
-      return
-    }
-    if (file.type !== 'image/jpeg' && file.type !== 'image/png') {
-      setError('Only JPEG and PNG images are supported.')
-      return
-    }
+    if (!file || !file.type.startsWith('image/')) { setError('Please select a JPEG or PNG image.'); return }
+    if (file.type !== 'image/jpeg' && file.type !== 'image/png') { setError('Only JPEG and PNG images are supported.'); return }
     setError(null)
     const reader = new FileReader()
     reader.onload = (e) => {
       const dataUrl = e.target.result
-      const base64 = dataUrl.split(',')[1]
       setPreview(dataUrl)
-      setImageBase64(base64)
+      setImageBase64(dataUrl.split(',')[1])
       setMimeType(file.type)
     }
     reader.readAsDataURL(file)
-  }
-
-  const handleFileChange = (e) => {
-    const file = e.target.files[0]
-    if (file) processFile(file)
-  }
-
-  const handleDrop = (e) => {
-    e.preventDefault()
-    setDragging(false)
-    const file = e.dataTransfer.files[0]
-    if (file) processFile(file)
   }
 
   const handleAnalyze = async () => {
@@ -192,6 +168,10 @@ function PhotoTab({ onResult }) {
     setError(null)
     try {
       const data = await analyzeFoodPhoto(imageBase64, mimeType)
+      if (data.not_available) {
+        setError('Photo analysis is not available with the current AI provider. Please use text search instead.')
+        return
+      }
       onResult({ data, logName: data.food_name || 'Photo meal', logDescription: null })
     } catch (err) {
       const msg = err.message || 'Photo analysis failed'
@@ -203,15 +183,15 @@ function PhotoTab({ onResult }) {
 
   return (
     <div className="space-y-3">
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-600">{error}</div>
-      )}
-
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
+        Photo analysis may not be available — use text search for best results.
+      </div>
+      {error && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-600">{error}</div>}
       <div
         onClick={() => fileInputRef.current?.click()}
         onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
         onDragLeave={() => setDragging(false)}
-        onDrop={handleDrop}
+        onDrop={(e) => { e.preventDefault(); setDragging(false); processFile(e.dataTransfer.files[0]) }}
         className={`relative border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-colors ${
           dragging ? 'border-indigo-400 bg-indigo-50' : 'border-gray-300 bg-gray-50 hover:border-indigo-300'
         }`}
@@ -223,33 +203,20 @@ function PhotoTab({ onResult }) {
             <svg className="w-10 h-10 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                 d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
             <p className="text-sm text-gray-500 font-medium">Tap to take photo or upload</p>
             <p className="text-xs text-gray-400 mt-1">JPEG or PNG</p>
           </>
         )}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/jpeg,image/png"
-          capture="environment"
-          className="hidden"
-          onChange={handleFileChange}
-        />
+        <input ref={fileInputRef} type="file" accept="image/jpeg,image/png" capture="environment" className="hidden" onChange={(e) => processFile(e.target.files[0])} />
       </div>
-
       {preview && (
-        <button
-          type="button"
-          onClick={() => { setPreview(null); setImageBase64(null); setMimeType(null) }}
-          className="text-xs text-gray-400 hover:text-gray-600 underline w-full text-center"
-        >
+        <button type="button" onClick={() => { setPreview(null); setImageBase64(null); setMimeType(null) }}
+          className="text-xs text-gray-400 hover:text-gray-600 underline w-full text-center">
           Remove photo
         </button>
       )}
-
       <button
         type="button"
         disabled={analyzing || !imageBase64}
@@ -268,14 +235,10 @@ export default function FoodLogger() {
   const [pendingLog, setPendingLog] = useState(null)
   const [logging, setLogging] = useState(false)
   const [todayEntries, setTodayEntries] = useState([])
+  const [resetKey, setResetKey] = useState(0)
 
   const loadToday = useCallback(async () => {
-    try {
-      const entries = await getTodayFood()
-      setTodayEntries(entries)
-    } catch {
-      // silent — today list is non-critical
-    }
+    try { setTodayEntries(await getTodayFood()) } catch { /* silent */ }
   }, [])
 
   useEffect(() => { loadToday() }, [loadToday])
@@ -300,6 +263,7 @@ export default function FoodLogger() {
       })
       setResult(null)
       setPendingLog(null)
+      setResetKey(k => k + 1)
       await loadToday()
     } catch (err) {
       console.error(err)
@@ -319,40 +283,19 @@ export default function FoodLogger() {
     <div className="space-y-4">
       <div className="bg-white rounded-2xl shadow-sm p-4 space-y-4">
         <h3 className="font-semibold text-gray-800">What did you eat?</h3>
-
-        {/* Tabs */}
         <div className="flex rounded-xl bg-gray-100 p-1 gap-1">
-          <button
-            type="button"
-            onClick={() => { setTab('text'); setResult(null) }}
-            className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              tab === 'text' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'
-            }`}
-          >
+          <button type="button" onClick={() => { setTab('text'); setResult(null) }}
+            className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${tab === 'text' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'}`}>
             Text
           </button>
-          <button
-            type="button"
-            onClick={() => { setTab('photo'); setResult(null) }}
-            className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              tab === 'photo' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'
-            }`}
-          >
+          <button type="button" onClick={() => { setTab('photo'); setResult(null) }}
+            className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${tab === 'photo' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500'}`}>
             Photo
           </button>
         </div>
-
-        {tab === 'text' ? (
-          <TextTab onResult={handleResult} />
-        ) : (
-          <PhotoTab onResult={handleResult} />
-        )}
+        {tab === 'text' ? <TextTab onResult={handleResult} resetKey={resetKey} /> : <PhotoTab onResult={handleResult} />}
       </div>
-
-      {result && (
-        <AnalysisCard result={result} onLog={handleLog} logging={logging} />
-      )}
-
+      {result && <AnalysisCard result={result} onLog={handleLog} logging={logging} />}
       <TodayList entries={todayEntries} onDelete={handleDelete} total={totalCalories} />
     </div>
   )

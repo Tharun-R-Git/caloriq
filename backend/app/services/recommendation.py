@@ -2,7 +2,7 @@ import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.routes.profile import get_or_create_user
+from app.services.profile_service import get_or_create_user, cuisine_to_list
 from app.services.analytics_service import get_daily_summary
 from app.services.gemini_service import GeminiService
 
@@ -24,23 +24,24 @@ class RecommendationService:
         return "night"
 
     def _goal_macros(self, goal_calories: int) -> tuple[float, float, float]:
-        """Standard 30/40/30 macro split (protein/carbs/fat)."""
         protein_g = round(goal_calories * 0.30 / 4, 1)
         carbs_g = round(goal_calories * 0.40 / 4, 1)
         fat_g = round(goal_calories * 0.30 / 9, 1)
         return protein_g, carbs_g, fat_g
 
-    async def get_meal_recommendations(self, db: AsyncSession) -> dict:
+    async def get_meal_recommendations(self, db: AsyncSession, meal_source: str = "home") -> dict:
         user = await get_or_create_user(db)
         summary = await get_daily_summary(db)
 
         goal_calories = user.goal_calories or 2000
         goal_protein, goal_carbs, goal_fat = self._goal_macros(goal_calories)
 
-        remaining_calories = max(0, summary["remaining"])
+        # Allow negative remaining to signal over-goal
+        remaining_calories = summary["remaining"]
         remaining_protein = round(max(0.0, goal_protein - summary["protein_g"]), 1)
         remaining_carbs = round(max(0.0, goal_carbs - summary["carbs_g"]), 1)
         remaining_fat = round(max(0.0, goal_fat - summary["fat_g"]), 1)
+        over_goal = remaining_calories < 0
 
         recent_foods = [f["name"] for f in summary["recent_foods"]]
         time_of_day = self._time_of_day()
@@ -50,6 +51,8 @@ class RecommendationService:
             "weight_kg": user.weight_kg,
             "goal_calories": goal_calories,
             "activity_level": user.activity_level,
+            "dietary_preference": user.dietary_preference,
+            "cuisine_preferences": cuisine_to_list(user.cuisine_preferences),
         }
 
         result = await self.gemini.get_meal_recommendations(
@@ -60,22 +63,25 @@ class RecommendationService:
             remaining_fat=remaining_fat,
             recent_foods=recent_foods,
             time_of_day=time_of_day,
+            meal_source=meal_source,
         )
 
-        message = (
-            f"Based on your remaining {remaining_calories} kcal for today"
-            if remaining_calories > 0
-            else "You've hit your calorie goal — here are some light options."
-        )
+        if over_goal:
+            message = f"You're {abs(remaining_calories)} kcal over your goal — try lighter options and some exercise."
+        elif remaining_calories == 0:
+            message = "You've hit your calorie goal — here are some light options."
+        else:
+            message = f"You have {remaining_calories} kcal remaining for today."
 
         return {
             "recommendations": result.get("recommendations", []),
+            "exercise_suggestions": result.get("exercise_suggestions", []),
             "remaining_calories": remaining_calories,
+            "over_goal": over_goal,
             "message": message,
         }
 
     async def get_suggestions(self, db: AsyncSession) -> dict:
-        """Legacy endpoint — basic TDEE summary."""
         from app.services.calorie_engine import CalorieEngine
 
         engine = CalorieEngine()

@@ -46,6 +46,7 @@ class FoodPhotoAnalyzeResponse(BaseModel):
     serving_size: str
     confidence: float
     items_detected: list[str]
+    not_available: bool = False
 
 
 class FoodLogRequest(BaseModel):

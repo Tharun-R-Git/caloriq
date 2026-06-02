@@ -46,6 +46,8 @@ async def init_db():
             ("aim", "TEXT"),
             ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
             ("updated_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+            ("dietary_preference", "TEXT"),
+            ("cuisine_preferences", "TEXT"),
         ]
         for col, typedef in new_user_cols:
             try:

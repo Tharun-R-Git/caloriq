@@ -16,5 +16,7 @@ class User(Base):
     activity_level = Column(String, default="moderate")
     aim = Column(String, nullable=True)             # lose / maintain / gain
     goal_calories = Column(Integer, default=2000)   # computed + cached on save
+    dietary_preference = Column(String, nullable=True)   # veg / non_veg / eggetarian
+    cuisine_preferences = Column(String, nullable=True)  # pipe-separated: north_indian|chinese
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

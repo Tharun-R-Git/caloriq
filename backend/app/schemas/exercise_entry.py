@@ -22,12 +22,28 @@ class ExerciseEntryRead(ExerciseEntryBase):
     model_config = {"from_attributes": True}
 
 
-# --- schemas for /log and /today routes ---
+# --- AI analyze ---
+
+class ExerciseAnalyzeRequest(BaseModel):
+    description: str = Field(..., min_length=1, max_length=500)
+    duration_minutes: float = Field(..., gt=0)
+
+
+class ExerciseAnalyzeResponse(BaseModel):
+    calories_burned: float
+    exercise_type: str
+    met_value: float
+    intensity: str
+    confidence: float
+
+
+# --- log and today routes ---
 
 class ExerciseLogRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     duration_minutes: float = Field(..., gt=0)
     intensity: str = Field("moderate", pattern="^(light|moderate|vigorous)$")
+    calories_burned_override: Optional[float] = None
     date: Optional[datetime.date] = None
 
 

@@ -25,15 +25,27 @@ class MealRecommendationItem(BaseModel):
     portion_size: str
 
 
+class ExerciseSuggestionItem(BaseModel):
+    name: str
+    duration_minutes: int
+    calories_burned: int
+    reason: str
+
+
 class RecommendationsResponse(BaseModel):
     recommendations: list[MealRecommendationItem]
+    exercise_suggestions: list[ExerciseSuggestionItem] = []
     remaining_calories: int
+    over_goal: bool = False
     message: str
 
 
 @router.get("/recommendations", response_model=RecommendationsResponse)
-async def get_recommendations(db: AsyncSession = Depends(get_db)):
-    return await _rec_service.get_meal_recommendations(db)
+async def get_recommendations(
+    meal_source: str = "home",
+    db: AsyncSession = Depends(get_db),
+):
+    return await _rec_service.get_meal_recommendations(db, meal_source=meal_source)
 
 
 @router.get("/suggestions")
