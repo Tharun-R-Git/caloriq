@@ -146,3 +146,82 @@ class GeminiService:
     async def get_meal_ideas(self, calorie_target: int, dietary_preferences: list[str]) -> list[dict]:
         # TODO: generate meal suggestions using Gemini
         return []
+
+    def _mock_recommendations(self, time_of_day: str) -> dict:
+        if "morning" in time_of_day:
+            return {"recommendations": [
+                {"name": "Oatmeal with banana", "calories": 320, "protein_g": 10.0, "carbs_g": 58.0, "fat_g": 5.0, "reason": "High-fibre morning fuel", "portion_size": "1 bowl (300g)"},
+                {"name": "Greek yogurt with honey", "calories": 180, "protein_g": 15.0, "carbs_g": 20.0, "fat_g": 3.0, "reason": "Protein-rich light breakfast", "portion_size": "200g"},
+                {"name": "Boiled eggs on toast", "calories": 280, "protein_g": 18.0, "carbs_g": 24.0, "fat_g": 10.0, "reason": "Balanced protein and carbs to start the day", "portion_size": "2 eggs + 1 slice"},
+            ]}
+        if "lunch" in time_of_day or "afternoon" in time_of_day:
+            return {"recommendations": [
+                {"name": "Grilled chicken salad", "calories": 350, "protein_g": 40.0, "carbs_g": 15.0, "fat_g": 12.0, "reason": "High protein mid-day meal", "portion_size": "1 large bowl"},
+                {"name": "Dal and roti", "calories": 380, "protein_g": 18.0, "carbs_g": 58.0, "fat_g": 8.0, "reason": "Balanced Indian staple with complex carbs", "portion_size": "2 rotis + 1 bowl dal"},
+                {"name": "Tuna whole-wheat sandwich", "calories": 420, "protein_g": 32.0, "carbs_g": 42.0, "fat_g": 10.0, "reason": "Portable protein-packed lunch", "portion_size": "1 sandwich"},
+            ]}
+        if "dinner" in time_of_day or "evening" in time_of_day:
+            return {"recommendations": [
+                {"name": "Baked salmon with vegetables", "calories": 400, "protein_g": 38.0, "carbs_g": 20.0, "fat_g": 18.0, "reason": "Omega-3 rich satisfying dinner", "portion_size": "200g salmon + 1 cup veg"},
+                {"name": "Paneer curry with brown rice", "calories": 450, "protein_g": 22.0, "carbs_g": 55.0, "fat_g": 16.0, "reason": "Filling vegetarian dinner with complete protein", "portion_size": "1 cup rice + 1 cup curry"},
+                {"name": "Vegetable soup with bread", "calories": 250, "protein_g": 8.0, "carbs_g": 38.0, "fat_g": 6.0, "reason": "Light, low-calorie evening option", "portion_size": "1 bowl + 1 slice bread"},
+            ]}
+        return {"recommendations": [
+            {"name": "Cottage cheese with nuts", "calories": 200, "protein_g": 18.0, "carbs_g": 8.0, "fat_g": 10.0, "reason": "Light protein-rich night snack", "portion_size": "100g cottage cheese + 15g nuts"},
+            {"name": "Mixed nuts", "calories": 180, "protein_g": 6.0, "carbs_g": 8.0, "fat_g": 15.0, "reason": "Healthy fats with minimal carbs", "portion_size": "30g"},
+            {"name": "Banana with peanut butter", "calories": 220, "protein_g": 7.0, "carbs_g": 30.0, "fat_g": 8.0, "reason": "Quick energy with protein", "portion_size": "1 medium banana + 1 tbsp PB"},
+        ]}
+
+    async def get_meal_recommendations(
+        self,
+        user_profile: dict,
+        remaining_calories: int,
+        remaining_protein: float,
+        remaining_carbs: float,
+        remaining_fat: float,
+        recent_foods: list[str],
+        time_of_day: str,
+    ) -> dict:
+        if not self.client:
+            return self._mock_recommendations(time_of_day)
+
+        age = user_profile.get("age") or "unknown"
+        weight = user_profile.get("weight_kg") or "unknown"
+        goal = user_profile.get("goal_calories", 2000)
+        activity = user_profile.get("activity_level", "moderate")
+        recent_str = ", ".join(recent_foods) if recent_foods else "nothing yet"
+
+        prompt = (
+            f"User profile: {age}y, {weight}kg, goal: {goal} kcal/day, activity: {activity}. "
+            f"Remaining today: {remaining_calories} kcal, {remaining_protein}g protein, "
+            f"{remaining_carbs}g carbs, {remaining_fat}g fat. "
+            f"Recently eaten: {recent_str}. "
+            f"Time of day: {time_of_day}. "
+            "Suggest 3 specific meals/snacks that fit the remaining macros. "
+            "Return ONLY valid JSON, no markdown, no explanation: "
+            '{"recommendations": [{"name": "string", "calories": 0, "protein_g": 0.0, '
+            '"carbs_g": 0.0, "fat_g": 0.0, "reason": "string", "portion_size": "string"}]}'
+        )
+
+        try:
+            text = await asyncio.to_thread(self._call_gemini, prompt)
+            text = text.strip()
+            text = re.sub(r'^```(?:json)?\s*\n?', '', text)
+            text = re.sub(r'\n?```\s*$', '', text)
+            text = text.strip()
+            data = json.loads(text)
+            recs = []
+            for r in data.get("recommendations", [])[:3]:
+                recs.append({
+                    "name": str(r.get("name", "")),
+                    "calories": int(r.get("calories", 0)),
+                    "protein_g": float(r.get("protein_g", 0)),
+                    "carbs_g": float(r.get("carbs_g", 0)),
+                    "fat_g": float(r.get("fat_g", 0)),
+                    "reason": str(r.get("reason", "")),
+                    "portion_size": str(r.get("portion_size", "1 serving")),
+                })
+            return {"recommendations": recs}
+        except Exception as exc:
+            logger.warning("Gemini get_meal_recommendations failed: %s", exc)
+            return self._mock_recommendations(time_of_day)

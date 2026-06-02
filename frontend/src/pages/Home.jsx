@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { RadialBarChart, RadialBar, ResponsiveContainer } from 'recharts'
-import { getDashboardSummary, logFood } from '../api/api'
+import { getDashboardSummary, logFood, getRecommendations } from '../api/api'
 
 const EMPTY = {
   calories_in: 0,
@@ -32,10 +32,21 @@ function StatCard({ label, value, unit, colorClass }) {
   )
 }
 
+function MacroPill({ label, value, color }) {
+  return (
+    <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-medium ${color}`}>
+      {label} {value}g
+    </span>
+  )
+}
+
 export default function Home() {
   const [data, setData] = useState(EMPTY)
   const [loading, setLoading] = useState(true)
   const [quickAdding, setQuickAdding] = useState(null)
+  const [recs, setRecs] = useState(null)
+  const [recsLoading, setRecsLoading] = useState(false)
+  const [loggingRec, setLoggingRec] = useState(null)
 
   const today = new Date().toLocaleDateString('en-GB', {
     weekday: 'long', day: 'numeric', month: 'long',
@@ -69,6 +80,37 @@ export default function Home() {
       console.error(e)
     } finally {
       setQuickAdding(null)
+    }
+  }
+
+  const fetchRecs = useCallback(async () => {
+    setRecsLoading(true)
+    try {
+      const result = await getRecommendations()
+      setRecs(result)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setRecsLoading(false)
+    }
+  }, [])
+
+  const logRec = async (rec) => {
+    setLoggingRec(rec.name)
+    try {
+      await logFood({
+        name: rec.name,
+        calories: rec.calories,
+        protein_g: rec.protein_g,
+        carbs_g: rec.carbs_g,
+        fat_g: rec.fat_g,
+        serving_size: rec.portion_size,
+      })
+      await load()
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoggingRec(null)
     }
   }
 
@@ -181,6 +223,98 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* AI Meal Recommendations */}
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 pb-6">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-sm font-medium text-gray-500">What should I eat next?</p>
+          {recs && (
+            <button
+              onClick={fetchRecs}
+              disabled={recsLoading}
+              className="text-xs text-indigo-500 hover:text-indigo-700 font-medium disabled:opacity-40"
+            >
+              {recsLoading ? 'Refreshing…' : 'Refresh'}
+            </button>
+          )}
+        </div>
+
+        {!recs && (
+          <button
+            onClick={fetchRecs}
+            disabled={recsLoading}
+            className="w-full py-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 active:bg-indigo-200 transition-colors text-indigo-700 text-sm font-semibold disabled:opacity-50"
+          >
+            {recsLoading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+                Asking AI…
+              </span>
+            ) : 'Ask AI for suggestions'}
+          </button>
+        )}
+
+        {recsLoading && recs && (
+          <div className="flex items-center justify-center py-6 gap-2 text-sm text-gray-400">
+            <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+            </svg>
+            Getting new suggestions…
+          </div>
+        )}
+
+        {recs && !recsLoading && (
+          <>
+            {recs.message && (
+              <p className="text-xs text-gray-400 mb-3">{recs.message}</p>
+            )}
+            <div className="space-y-3">
+              {recs.recommendations.map((rec) => (
+                <div
+                  key={rec.name}
+                  className="rounded-xl border border-gray-100 bg-gray-50 p-3"
+                >
+                  {/* Header */}
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800 leading-snug">{rec.name}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{rec.portion_size}</p>
+                    </div>
+                    <span className="shrink-0 text-sm font-bold text-orange-500">
+                      {rec.calories} kcal
+                    </span>
+                  </div>
+
+                  {/* Macro pills */}
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    <MacroPill label="P" value={rec.protein_g} color="bg-blue-100 text-blue-700" />
+                    <MacroPill label="C" value={rec.carbs_g} color="bg-amber-100 text-amber-700" />
+                    <MacroPill label="F" value={rec.fat_g} color="bg-rose-100 text-rose-700" />
+                  </div>
+
+                  {/* Reason */}
+                  {rec.reason && (
+                    <p className="text-xs text-gray-400 mb-3 leading-snug">{rec.reason}</p>
+                  )}
+
+                  {/* Log button */}
+                  <button
+                    onClick={() => logRec(rec)}
+                    disabled={loggingRec === rec.name}
+                    className="w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs font-semibold transition-colors disabled:opacity-50"
+                  >
+                    {loggingRec === rec.name ? 'Logging…' : 'Log this'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   )
 }
