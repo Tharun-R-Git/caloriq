@@ -50,3 +50,6 @@ export const getTrends = (days = 30) => request(`/analytics/trends?days=${days}`
 
 // AI suggestions
 export const getAISuggestions = () => request('/ai/suggestions')
+
+// AI meal recommendations
+export const getRecommendations = () => request('/ai/recommendations')

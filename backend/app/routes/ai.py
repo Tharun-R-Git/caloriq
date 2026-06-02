@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
@@ -8,20 +8,43 @@ from app.services.recommendation import RecommendationService
 
 router = APIRouter()
 
+_rec_service = RecommendationService()
+
 
 class MealAnalysisRequest(BaseModel):
-    description: str
+    description: str = Field(..., min_length=2, max_length=500)
+
+
+class MealRecommendationItem(BaseModel):
+    name: str
+    calories: int
+    protein_g: float
+    carbs_g: float
+    fat_g: float
+    reason: str
+    portion_size: str
+
+
+class RecommendationsResponse(BaseModel):
+    recommendations: list[MealRecommendationItem]
+    remaining_calories: int
+    message: str
+
+
+@router.get("/recommendations", response_model=RecommendationsResponse)
+async def get_recommendations(db: AsyncSession = Depends(get_db)):
+    return await _rec_service.get_meal_recommendations(db)
 
 
 @router.get("/suggestions")
 async def get_suggestions(db: AsyncSession = Depends(get_db)):
-    # TODO: gather recent food/exercise context before generating suggestions
-    service = RecommendationService()
-    return await service.get_suggestions(db)
+    return await _rec_service.get_suggestions(db)
 
 
 @router.post("/analyze-meal")
 async def analyze_meal(request: MealAnalysisRequest):
-    # TODO: wire result back to food logger so user can confirm and save
-    service = GeminiService()
-    return await service.analyze_meal(request.description)
+    try:
+        service = GeminiService()
+        return await service.analyze_food(request.description)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="AI analysis unavailable") from exc
