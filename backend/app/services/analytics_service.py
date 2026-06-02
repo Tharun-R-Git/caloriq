@@ -4,7 +4,7 @@ from sqlalchemy import select, func, desc
 
 from app.models.food_entry import FoodEntry
 from app.models.exercise_entry import ExerciseEntry
-from app.routes.profile import get_or_create_user
+from app.services.profile_service import get_or_create_user
 from app.schemas.analytics import DailyResponse, TrendDay
 
 

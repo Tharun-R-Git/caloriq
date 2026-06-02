@@ -43,7 +43,9 @@ export const deleteExercise = (id) => request(`/exercise/${id}`, { method: 'DELE
 
 // Profile
 export const getProfile = () => request('/profile')
+export const setupProfile = (data) => request('/profile/setup', { method: 'POST', body: JSON.stringify(data) })
 export const updateProfile = (data) => request('/profile', { method: 'PUT', body: JSON.stringify(data) })
+export const getProfileGoals = () => request('/profile/goals')
 
 // Analytics
 export const getDailySummary = (date) => request(`/analytics/daily?date=${date}`)

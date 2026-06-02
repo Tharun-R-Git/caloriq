@@ -40,6 +40,19 @@ async def init_db():
         except Exception:
             pass
 
+        new_user_cols = [
+            ("email", "TEXT"),
+            ("gender", "TEXT"),
+            ("aim", "TEXT"),
+            ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+            ("updated_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+        ]
+        for col, typedef in new_user_cols:
+            try:
+                await conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} {typedef}"))
+            except Exception:
+                pass
+
 
 async def get_db():
     async with SessionLocal() as session:
