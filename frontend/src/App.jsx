@@ -1,9 +1,12 @@
-import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import Home from './pages/Home'
 import Log from './pages/Log'
 import HistoryPage from './pages/History'
 import Trends from './pages/Trends'
 import ProfilePage from './pages/Profile'
+import Login from './pages/Login'
+import Register from './pages/Register'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Home' },
@@ -34,19 +37,56 @@ function NavBar() {
   )
 }
 
+function RequireAuth({ children }) {
+  const { user, loading } = useAuth()
+  const location = useLocation()
+
+  if (loading) {
+    return (
+      <div className="max-w-md mx-auto px-4 pt-20 text-center text-gray-400 text-sm">
+        Loading…
+      </div>
+    )
+  }
+  if (!user) {
+    return <Navigate to="/login" replace state={{ from: location }} />
+  }
+  return children
+}
+
+function AuthedApp() {
+  return (
+    <div className="min-h-screen bg-gray-50 pb-16">
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/log" element={<Log />} />
+        <Route path="/history" element={<HistoryPage />} />
+        <Route path="/trends" element={<Trends />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <NavBar />
+    </div>
+  )
+}
+
 export default function App() {
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-gray-50 pb-16">
+      <AuthProvider>
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/log" element={<Log />} />
-          <Route path="/history" element={<HistoryPage />} />
-          <Route path="/trends" element={<Trends />} />
-          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route
+            path="/*"
+            element={
+              <RequireAuth>
+                <AuthedApp />
+              </RequireAuth>
+            }
+          />
         </Routes>
-        <NavBar />
-      </div>
+      </AuthProvider>
     </BrowserRouter>
   )
 }

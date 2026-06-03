@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getProfile, setupProfile } from '../api/api'
+import { useAuth } from '../context/AuthContext'
 
 // ── Conversion helpers ────────────────────────────────────────────────────────
 
@@ -387,6 +388,7 @@ function StatCard({ label, value, sub }) {
 }
 
 function ProfileView({ profile, onEdit }) {
+  const { logout } = useAuth()
   const goals = profile.goals
   const actOpt = ACTIVITY_OPTIONS.find(a => a.value === profile.activity_level)
   const aimOpt = AIM_OPTIONS.find(a => a.value === profile.aim)
@@ -400,6 +402,9 @@ function ProfileView({ profile, onEdit }) {
             {profile.gender} · {profile.age} yrs · {aimOpt?.label || profile.aim}
             {profile.dietary_preference && ` · ${profile.dietary_preference.replace('_', '-')}`}
           </p>
+          {profile.email && (
+            <p className="text-xs text-gray-400 mt-0.5 normal-case">{profile.email}</p>
+          )}
         </div>
         <button
           onClick={onEdit}
@@ -472,6 +477,13 @@ function ProfileView({ profile, onEdit }) {
           </div>
         </>
       )}
+
+      <button
+        onClick={logout}
+        className="w-full py-3 rounded-xl border border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-50"
+      >
+        Log Out
+      </button>
     </div>
   )
 }

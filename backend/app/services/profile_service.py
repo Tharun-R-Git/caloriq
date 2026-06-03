@@ -1,19 +1,5 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-
 from app.models.user import User
 from app.services.calorie_engine import calculate_daily_goal
-
-
-async def get_or_create_user(db: AsyncSession) -> User:
-    result = await db.execute(select(User).limit(1))
-    user = result.scalar_one_or_none()
-    if not user:
-        user = User()
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
-    return user
 
 
 def is_setup(user: User) -> bool:

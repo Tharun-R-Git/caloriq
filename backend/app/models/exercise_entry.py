@@ -7,6 +7,7 @@ class ExerciseEntry(Base):
     __tablename__ = "exercise_entries"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, index=True, default=1)
     name = Column(String, nullable=False)
     duration_minutes = Column(Float, default=0)
     intensity = Column(String, default="moderate")
