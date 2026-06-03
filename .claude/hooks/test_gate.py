@@ -11,7 +11,7 @@ venv_python = _venv_win if os.path.exists(_venv_win) else _venv_unix if os.path.
 
 if os.path.isdir(backend):
     result = subprocess.run(
-        [sys.executable, '-m', 'pytest', 'tests/', '-q', '--tb=short'],
+        [venv_python, '-m', 'pytest', 'tests/', '-q', '--tb=short'],
         cwd=backend,
         capture_output=True,
         text=True
