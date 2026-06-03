@@ -8,7 +8,8 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, default="")
-    email = Column(String, nullable=True)
+    email = Column(String, nullable=True, unique=True, index=True)
+    password_hash = Column(String, nullable=True)
     age = Column(Integer, nullable=True)
     gender = Column(String, nullable=True)          # male / female / other
     height_cm = Column(Float, nullable=True)

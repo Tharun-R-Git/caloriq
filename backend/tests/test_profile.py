@@ -68,7 +68,8 @@ async def test_setup_profile_happy_path(client):
     data = resp.json()
 
     assert data["name"] == "Alex"
-    assert data["email"] == "alex@example.com"
+    # email is the login identity (owned by auth); profile setup must not change it
+    assert data["email"] == "test@example.com"
     assert data["age"] == 28
     assert data["gender"] == "male"
     assert data["height_cm"] == 175.0

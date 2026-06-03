@@ -4,11 +4,11 @@ from sqlalchemy import select, func, desc
 
 from app.models.food_entry import FoodEntry
 from app.models.exercise_entry import ExerciseEntry
-from app.services.profile_service import get_or_create_user
+from app.models.user import User
 from app.schemas.analytics import DailyResponse, TrendDay
 
 
-async def get_daily_summary(db: AsyncSession) -> dict:
+async def get_daily_summary(db: AsyncSession, user: User) -> dict:
     today = datetime.date.today()
 
     food_res = await db.execute(
@@ -17,18 +17,17 @@ async def get_daily_summary(db: AsyncSession) -> dict:
             func.coalesce(func.sum(FoodEntry.protein_g), 0),
             func.coalesce(func.sum(FoodEntry.carbs_g), 0),
             func.coalesce(func.sum(FoodEntry.fat_g), 0),
-        ).where(FoodEntry.date == today)
+        ).where(FoodEntry.user_id == user.id, FoodEntry.date == today)
     )
     calories_in, protein_g, carbs_g, fat_g = food_res.one()
 
     ex_res = await db.execute(
         select(func.coalesce(func.sum(ExerciseEntry.calories_burned), 0)).where(
-            ExerciseEntry.date == today
+            ExerciseEntry.user_id == user.id, ExerciseEntry.date == today
         )
     )
     calories_burned = ex_res.scalar()
 
-    user = await get_or_create_user(db)
     daily_goal = user.goal_calories or 2000
 
     net_calories = round(float(calories_in) - float(calories_burned))
@@ -42,7 +41,10 @@ async def get_daily_summary(db: AsyncSession) -> dict:
             FoodEntry.protein_g,
             FoodEntry.carbs_g,
             FoodEntry.fat_g,
-        ).order_by(desc(FoodEntry.logged_at)).limit(30)
+        )
+        .where(FoodEntry.user_id == user.id)
+        .order_by(desc(FoodEntry.logged_at))
+        .limit(30)
     )
     seen: set[str] = set()
     recent_foods = []
@@ -77,23 +79,23 @@ async def get_daily_summary(db: AsyncSession) -> dict:
     }
 
 
-async def get_daily_for_date(db: AsyncSession, date: datetime.date) -> DailyResponse:
+async def get_daily_for_date(db: AsyncSession, date: datetime.date, user: User) -> DailyResponse:
     food_res = await db.execute(
         select(
             func.coalesce(func.sum(FoodEntry.calories), 0),
             func.coalesce(func.sum(FoodEntry.protein_g), 0),
             func.coalesce(func.sum(FoodEntry.carbs_g), 0),
             func.coalesce(func.sum(FoodEntry.fat_g), 0),
-        ).where(FoodEntry.date == date)
+        ).where(FoodEntry.user_id == user.id, FoodEntry.date == date)
     )
     cal, protein, carbs, fat = food_res.one()
 
     ex_res = await db.execute(
-        select(func.coalesce(func.sum(ExerciseEntry.calories_burned), 0)).where(ExerciseEntry.date == date)
+        select(func.coalesce(func.sum(ExerciseEntry.calories_burned), 0)).where(
+            ExerciseEntry.user_id == user.id, ExerciseEntry.date == date
+        )
     )
     burned = ex_res.scalar()
-
-    user = await get_or_create_user(db)
 
     return DailyResponse(
         date=date,
@@ -106,7 +108,7 @@ async def get_daily_for_date(db: AsyncSession, date: datetime.date) -> DailyResp
     )
 
 
-async def get_trends(db: AsyncSession, days: int) -> list[TrendDay]:
+async def get_trends(db: AsyncSession, days: int, user: User) -> list[TrendDay]:
     today = datetime.date.today()
     start = today - datetime.timedelta(days=days - 1)
 
@@ -117,7 +119,9 @@ async def get_trends(db: AsyncSession, days: int) -> list[TrendDay]:
             func.coalesce(func.sum(FoodEntry.protein_g), 0).label("protein_g"),
             func.coalesce(func.sum(FoodEntry.carbs_g), 0).label("carbs_g"),
             func.coalesce(func.sum(FoodEntry.fat_g), 0).label("fat_g"),
-        ).where(FoodEntry.date >= start).group_by(FoodEntry.date)
+        )
+        .where(FoodEntry.user_id == user.id, FoodEntry.date >= start)
+        .group_by(FoodEntry.date)
     )
     food_by_date = {row.date: row for row in food_rows.all()}
 
@@ -125,11 +129,12 @@ async def get_trends(db: AsyncSession, days: int) -> list[TrendDay]:
         select(
             ExerciseEntry.date,
             func.coalesce(func.sum(ExerciseEntry.calories_burned), 0).label("calories_burned"),
-        ).where(ExerciseEntry.date >= start).group_by(ExerciseEntry.date)
+        )
+        .where(ExerciseEntry.user_id == user.id, ExerciseEntry.date >= start)
+        .group_by(ExerciseEntry.date)
     )
     ex_by_date = {row.date: row for row in ex_rows.all()}
 
-    user = await get_or_create_user(db)
     goal = user.goal_calories or 2000
 
     result = []

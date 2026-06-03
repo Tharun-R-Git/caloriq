@@ -2,7 +2,8 @@ import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.profile_service import get_or_create_user, cuisine_to_list
+from app.models.user import User
+from app.services.profile_service import cuisine_to_list
 from app.services.analytics_service import get_daily_summary
 from app.services.gemini_service import GeminiService
 
@@ -29,9 +30,8 @@ class RecommendationService:
         fat_g = round(goal_calories * 0.30 / 9, 1)
         return protein_g, carbs_g, fat_g
 
-    async def get_meal_recommendations(self, db: AsyncSession, meal_source: str = "home") -> dict:
-        user = await get_or_create_user(db)
-        summary = await get_daily_summary(db)
+    async def get_meal_recommendations(self, db: AsyncSession, user: User, meal_source: str = "home") -> dict:
+        summary = await get_daily_summary(db, user)
 
         goal_calories = user.goal_calories or 2000
         goal_protein, goal_carbs, goal_fat = self._goal_macros(goal_calories)
@@ -81,11 +81,10 @@ class RecommendationService:
             "message": message,
         }
 
-    async def get_suggestions(self, db: AsyncSession) -> dict:
+    async def get_suggestions(self, db: AsyncSession, user: User) -> dict:
         from app.services.calorie_engine import CalorieEngine
 
         engine = CalorieEngine()
-        user = await get_or_create_user(db)
         suggestions = []
 
         if user.weight_kg and user.height_cm and user.age:

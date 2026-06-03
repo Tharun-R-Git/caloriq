@@ -3,6 +3,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
+from app.dependencies import get_current_user
+from app.models.user import User
 from app.services.gemini_service import GeminiService
 from app.services.recommendation import RecommendationService
 
@@ -44,17 +46,21 @@ class RecommendationsResponse(BaseModel):
 async def get_recommendations(
     meal_source: str = "home",
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ):
-    return await _rec_service.get_meal_recommendations(db, meal_source=meal_source)
+    return await _rec_service.get_meal_recommendations(db, user, meal_source=meal_source)
 
 
 @router.get("/suggestions")
-async def get_suggestions(db: AsyncSession = Depends(get_db)):
-    return await _rec_service.get_suggestions(db)
+async def get_suggestions(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return await _rec_service.get_suggestions(db, user)
 
 
 @router.post("/analyze-meal")
-async def analyze_meal(request: MealAnalysisRequest):
+async def analyze_meal(request: MealAnalysisRequest, user: User = Depends(get_current_user)):
     try:
         service = GeminiService()
         return await service.analyze_food(request.description)
