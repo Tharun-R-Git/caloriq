@@ -25,13 +25,11 @@ function AnalysisCard({ result, onLog, logging }) {
   return (
     <div className="border border-green-200 bg-green-50 rounded-2xl p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-gray-800">
-          {result.food_name ? result.food_name : result.serving_size}
-        </p>
+        <p className="text-sm font-semibold text-gray-800">{result.food_name || result.serving_size}</p>
         <ConfidenceBadge value={result.confidence} />
       </div>
-      {result.food_name && <p className="text-xs text-gray-500">{result.serving_size}</p>}
-      {result.items_detected && result.items_detected.length > 0 && (
+      {result.serving_size && <p className="text-xs text-gray-500">{result.serving_size}</p>}
+      {result.items_detected?.length > 0 && (
         <p className="text-xs text-gray-500">Detected: {result.items_detected.join(', ')}</p>
       )}
       <div className="flex justify-around">
@@ -84,25 +82,23 @@ function TodayList({ entries, onDelete, total }) {
 }
 
 function TextTab({ onResult, resetKey }) {
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
+  const [meal, setMeal] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    setName('')
-    setDescription('')
+    setMeal('')
     setError(null)
   }, [resetKey])
 
   const handleAnalyze = async (e) => {
     e.preventDefault()
-    if (!name.trim()) return
+    if (!meal.trim()) return
     setAnalyzing(true)
     setError(null)
     try {
-      const data = await analyzeFood(name.trim(), description.trim() || undefined)
-      onResult({ data, logName: name.trim(), logDescription: description.trim() || null })
+      const data = await analyzeFood(meal.trim())
+      onResult({ data, logName: data.food_name || meal.trim(), logDescription: null })
     } catch (err) {
       const msg = err.message || 'AI analysis failed'
       try { setError(JSON.parse(msg).detail || msg) } catch { setError(msg) }
@@ -114,23 +110,17 @@ function TextTab({ onResult, resetKey }) {
   return (
     <form onSubmit={handleAnalyze} className="space-y-3">
       {error && <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-xs text-red-600">{error}</div>}
-      <input
-        required
-        className="input"
-        placeholder="e.g. chicken biryani 1 plate"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-      />
       <textarea
+        required
+        rows={3}
         className="input resize-none"
-        rows={2}
-        placeholder="Optional: add details (e.g. homemade, extra oil)"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
+        placeholder={"Describe everything you ate with quantities\ne.g. 400g Pongal + 2 Idlis + 1 Vada + Sambar + Coconut Chutney"}
+        value={meal}
+        onChange={(e) => setMeal(e.target.value)}
       />
       <button
         type="submit"
-        disabled={analyzing || !name.trim()}
+        disabled={analyzing || !meal.trim()}
         className="w-full bg-indigo-500 text-white py-2 rounded-xl font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-50 active:bg-indigo-600"
       >
         {analyzing ? <><Spinner /> Analyzing…</> : '✨ Analyze with AI'}

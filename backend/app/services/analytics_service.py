@@ -70,6 +70,9 @@ async def get_daily_summary(db: AsyncSession) -> dict:
         "protein_g": round(float(protein_g), 1),
         "carbs_g": round(float(carbs_g), 1),
         "fat_g": round(float(fat_g), 1),
+        "protein_goal_g": round(daily_goal * 0.30 / 4),
+        "carbs_goal_g": round(daily_goal * 0.45 / 4),
+        "fat_goal_g": round(daily_goal * 0.25 / 9),
         "recent_foods": recent_foods,
     }
 

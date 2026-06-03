@@ -35,10 +35,14 @@ async def init_db():
             except Exception:
                 pass
 
-        try:
-            await conn.execute(text("ALTER TABLE exercise_entries ADD COLUMN intensity TEXT DEFAULT 'moderate'"))
-        except Exception:
-            pass
+        for col, typedef in [
+            ("intensity", "TEXT DEFAULT 'moderate'"),
+            ("logged_at", "TIMESTAMP"),
+        ]:
+            try:
+                await conn.execute(text(f"ALTER TABLE exercise_entries ADD COLUMN {col} {typedef}"))
+            except Exception:
+                pass
 
         new_user_cols = [
             ("email", "TEXT"),

@@ -50,38 +50,53 @@ class GeminiService:
     def _mock_analyze(self, name: str) -> dict[str, Any]:
         n = name.lower()
         if any(w in n for w in ["biryani", "rice", "pulao"]):
-            return {"calories": 450, "protein_g": 12.0, "carbs_g": 72.0, "fat_g": 14.0, "serving_size": "1 plate (350g)", "confidence": 0.0}
+            return {"food_name": "Rice Meal", "calories": 450, "protein_g": 12.0, "carbs_g": 72.0, "fat_g": 14.0, "serving_size": "1 plate (350g)", "confidence": 0.0}
         if any(w in n for w in ["chicken", "mutton", "fish", "egg"]):
-            return {"calories": 280, "protein_g": 32.0, "carbs_g": 6.0, "fat_g": 14.0, "serving_size": "1 serving (200g)", "confidence": 0.0}
+            return {"food_name": "Protein Meal", "calories": 280, "protein_g": 32.0, "carbs_g": 6.0, "fat_g": 14.0, "serving_size": "1 serving (200g)", "confidence": 0.0}
         if any(w in n for w in ["pizza", "burger", "sandwich"]):
-            return {"calories": 520, "protein_g": 22.0, "carbs_g": 58.0, "fat_g": 22.0, "serving_size": "1 piece", "confidence": 0.0}
+            return {"food_name": "Fast Food", "calories": 520, "protein_g": 22.0, "carbs_g": 58.0, "fat_g": 22.0, "serving_size": "1 piece", "confidence": 0.0}
         if any(w in n for w in ["dal", "lentil", "soup"]):
-            return {"calories": 180, "protein_g": 10.0, "carbs_g": 28.0, "fat_g": 4.0, "serving_size": "1 bowl (250ml)", "confidence": 0.0}
+            return {"food_name": "Dal Soup", "calories": 180, "protein_g": 10.0, "carbs_g": 28.0, "fat_g": 4.0, "serving_size": "1 bowl (250ml)", "confidence": 0.0}
         if any(w in n for w in ["roti", "chapati", "naan", "bread"]):
-            return {"calories": 120, "protein_g": 4.0, "carbs_g": 22.0, "fat_g": 3.0, "serving_size": "1 piece (60g)", "confidence": 0.0}
+            return {"food_name": "Indian Bread", "calories": 120, "protein_g": 4.0, "carbs_g": 22.0, "fat_g": 3.0, "serving_size": "1 piece (60g)", "confidence": 0.0}
         if any(w in n for w in ["salad", "vegetable", "veg"]):
-            return {"calories": 80, "protein_g": 3.0, "carbs_g": 12.0, "fat_g": 2.0, "serving_size": "1 bowl (200g)", "confidence": 0.0}
+            return {"food_name": "Vegetable Salad", "calories": 80, "protein_g": 3.0, "carbs_g": 12.0, "fat_g": 2.0, "serving_size": "1 bowl (200g)", "confidence": 0.0}
         if any(w in n for w in ["coffee", "tea", "juice", "milk"]):
-            return {"calories": 60, "protein_g": 2.0, "carbs_g": 10.0, "fat_g": 1.5, "serving_size": "1 cup (240ml)", "confidence": 0.0}
-        return {"calories": 300, "protein_g": 10.0, "carbs_g": 40.0, "fat_g": 10.0, "serving_size": "1 serving", "confidence": 0.0}
+            return {"food_name": "Beverage", "calories": 60, "protein_g": 2.0, "carbs_g": 10.0, "fat_g": 1.5, "serving_size": "1 cup (240ml)", "confidence": 0.0}
+        if any(w in n for w in ["pongal", "idli", "dosa", "vada", "upma", "sambar"]):
+            return {"food_name": "South Indian Breakfast", "calories": 420, "protein_g": 12.0, "carbs_g": 68.0, "fat_g": 10.0, "serving_size": "1 full plate", "confidence": 0.0}
+        return {"food_name": name.title()[:30], "calories": 300, "protein_g": 10.0, "carbs_g": 40.0, "fat_g": 10.0, "serving_size": "1 serving", "confidence": 0.0}
 
     async def analyze_food(self, name: str, description: str = None) -> dict[str, Any]:
         if not self.client:
             return self._mock_analyze(name)
 
-        desc_part = description or "no additional info"
+        extra = f" Additional context: {description}" if description else ""
         prompt = (
-            "Analyze this food and return ONLY a JSON object with these exact keys: "
-            "calories (int), protein_g (float), carbs_g (float), fat_g (float), "
-            "serving_size (str), confidence (float 0-1). "
-            "Return ONLY valid JSON, no markdown, no explanation. "
-            f"Food: {name}. Additional info: {desc_part}"
+            "You are a precise nutrition expert. The user has described a meal — it may contain "
+            "multiple food items with specific quantities (e.g. '400g Pongal + 2 Idlis + 1 Vada + Sambar + Chutney'). "
+            "Follow these steps exactly:\n"
+            "1. Identify every individual food item and its quantity/weight/count from the description.\n"
+            "2. For each item, estimate its calories, protein, carbs, and fat using standard nutrition data "
+            "(use Indian nutrition values for Indian foods — e.g. idli ~39 kcal each, vada ~97 kcal each, "
+            "pongal ~130 kcal per 100g, sambar ~50 kcal per 100ml, chutney ~30-60 kcal per 2 tbsp).\n"
+            "3. SUM all items to get the total meal nutrition. Do NOT return values for just one item.\n"
+            "4. Set food_name to a clean, properly capitalised short name for the full meal, max 5 words "
+            "(e.g. 'Pongal Breakfast Plate', 'Masala Dosa Meal', 'Rajma Rice Bowl'). "
+            "Infer the meal type from context (breakfast/lunch/dinner/snack) if obvious.\n"
+            "5. Set serving_size to a compact label of the full meal "
+            "(e.g. '400g Pongal + 2 Idli + 1 Vada + accompaniments').\n"
+            "6. Set confidence between 0.7-0.95 for well-known Indian/common foods; lower for vague descriptions.\n"
+            "Return ONLY a single valid JSON object — no markdown, no explanation, no item breakdown:\n"
+            '{"food_name": "string", "calories": 0, "protein_g": 0.0, "carbs_g": 0.0, "fat_g": 0.0, "serving_size": "string", "confidence": 0.0}\n'
+            f"Meal: {name}.{extra}"
         )
         try:
             text = self._strip_markdown(await asyncio.to_thread(self._call_mistral, prompt))
             data = json.loads(text)
             confidence = float(data.get("confidence", 0.5))
             return {
+                "food_name": str(data.get("food_name", name.title()[:30])),
                 "calories": int(data["calories"]),
                 "protein_g": float(data.get("protein_g", 0)),
                 "carbs_g": float(data.get("carbs_g", 0)),

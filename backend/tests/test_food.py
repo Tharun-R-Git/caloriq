@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 
 MOCK_ANALYSIS = {
+    "food_name": "Chicken Biryani",
     "calories": 450,
     "protein_g": 12.0,
     "carbs_g": 72.0,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getProfile, setupProfile } from '../api/api'
 
@@ -96,11 +96,11 @@ function Step1({ form, set }) {
       <div>
         <label className="block text-sm font-medium text-gray-600 mb-1.5">Age</label>
         <input
-          type="number"
-          value={form.age}
-          onChange={e => set('age', Math.max(10, Math.min(100, parseInt(e.target.value) || 10)))}
-          min="10"
-          max="100"
+          type="text"
+          inputMode="numeric"
+          value={form.age ?? ''}
+          onChange={e => set('age', e.target.value)}
+          placeholder="Enter your age"
           className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
         />
       </div>
@@ -172,52 +172,103 @@ function Step2({ form, set }) {
   )
 }
 
+const ITEM_H = 44
+
+function DrumRoller({ values, value, onChange, formatValue }) {
+  const ref = useRef(null)
+  const lastIdx = useRef(values.indexOf(value))
+  const fmt = formatValue || (v => v)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const idx = values.indexOf(value)
+    if (idx < 0) return
+    el.scrollTop = idx * ITEM_H
+    lastIdx.current = idx
+  }, []) // only on mount — user scroll drives value after that
+
+  const handleScroll = useCallback(() => {
+    const el = ref.current
+    if (!el) return
+    const idx = Math.max(0, Math.min(Math.round(el.scrollTop / ITEM_H), values.length - 1))
+    if (idx !== lastIdx.current) {
+      lastIdx.current = idx
+      onChange(values[idx])
+    }
+  }, [values, onChange])
+
+  return (
+    <div className="relative overflow-hidden rounded-xl bg-white" style={{ height: ITEM_H * 5 }}>
+      {/* top fade */}
+      <div className="absolute inset-x-0 top-0 z-10 pointer-events-none"
+        style={{ height: ITEM_H * 2, background: 'linear-gradient(to bottom, rgba(255,255,255,0.97) 0%, transparent 100%)' }} />
+      {/* bottom fade */}
+      <div className="absolute inset-x-0 bottom-0 z-10 pointer-events-none"
+        style={{ height: ITEM_H * 2, background: 'linear-gradient(to top, rgba(255,255,255,0.97) 0%, transparent 100%)' }} />
+      {/* selection band */}
+      <div className="absolute inset-x-2 z-10 pointer-events-none rounded-xl"
+        style={{ top: ITEM_H * 2, height: ITEM_H, background: 'rgba(34,197,94,0.12)', border: '1.5px solid #22c55e' }} />
+      <div
+        ref={ref}
+        onScroll={handleScroll}
+        style={{ height: ITEM_H * 5, overflowY: 'scroll', scrollSnapType: 'y mandatory', scrollbarWidth: 'none' }}
+      >
+        <div style={{ height: ITEM_H * 2 }} />
+        {values.map(v => (
+          <div
+            key={v}
+            style={{ height: ITEM_H, scrollSnapAlign: 'center' }}
+            className={`flex items-center justify-center select-none transition-all duration-100 ${
+              v === value ? 'text-xl font-bold text-gray-900' : 'text-base text-gray-400'
+            }`}
+          >
+            {fmt(v)}
+          </div>
+        ))}
+        <div style={{ height: ITEM_H * 2 }} />
+      </div>
+    </div>
+  )
+}
+
+const HEIGHT_VALUES = Array.from({ length: 81 }, (_, i) => 140 + i)   // 140–220
+const WEIGHT_VALUES = Array.from({ length: 121 }, (_, i) => 30 + i)   // 30–150
+
 function Step3({ form, set }) {
   return (
-    <div className="space-y-7">
+    <div className="space-y-6">
       <div>
-        <div className="flex justify-between items-end mb-2">
+        <div className="flex justify-between items-baseline mb-3">
           <label className="text-sm font-medium text-gray-600">Height</label>
-          <div className="text-right">
+          <div className="text-right leading-none">
             <span className="text-2xl font-bold text-gray-900">{form.height_cm}</span>
             <span className="text-sm text-gray-400 ml-1">cm</span>
             <span className="text-xs text-gray-400 ml-2">({cmToFtIn(form.height_cm)})</span>
           </div>
         </div>
-        <input
-          type="range"
-          min="140"
-          max="220"
+        <DrumRoller
+          values={HEIGHT_VALUES}
           value={form.height_cm}
-          onChange={e => set('height_cm', parseInt(e.target.value))}
-          className="w-full accent-green-500"
+          onChange={v => set('height_cm', v)}
+          formatValue={v => `${v} cm`}
         />
-        <div className="flex justify-between text-xs text-gray-300 mt-1">
-          <span>140 cm</span>
-          <span>220 cm</span>
-        </div>
       </div>
       <div>
-        <div className="flex justify-between items-end mb-2">
+        <div className="flex justify-between items-baseline mb-3">
           <label className="text-sm font-medium text-gray-600">Weight</label>
-          <div className="text-right">
+          <div className="text-right leading-none">
             <span className="text-2xl font-bold text-gray-900">{form.weight_kg}</span>
             <span className="text-sm text-gray-400 ml-1">kg</span>
             <span className="text-xs text-gray-400 ml-2">({kgToLbs(form.weight_kg)} lbs)</span>
           </div>
         </div>
-        <input
-          type="range"
-          min="30"
-          max="200"
+        <DrumRoller
+          values={WEIGHT_VALUES}
           value={form.weight_kg}
-          onChange={e => set('weight_kg', parseInt(e.target.value))}
-          className="w-full accent-green-500"
+          onChange={v => set('weight_kg', v)}
+          formatValue={v => `${v} kg`}
         />
-        <div className="flex justify-between text-xs text-gray-300 mt-1">
-          <span>30 kg</span>
-          <span>200 kg</span>
-        </div>
       </div>
     </div>
   )
@@ -434,7 +485,7 @@ export default function ProfilePage() {
   const [form, setForm] = useState({
     name: '',
     email: '',
-    age: 25,
+    age: '',
     gender: 'male',
     height_cm: 170,
     weight_kg: 70,
@@ -444,6 +495,7 @@ export default function ProfilePage() {
     cuisine_preferences: [],
   })
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(null)
   const [editing, setEditing] = useState(false)
   const navigate = useNavigate()
 
@@ -455,7 +507,7 @@ export default function ProfilePage() {
           setForm({
             name: p.name || '',
             email: p.email || '',
-            age: p.age ?? 25,
+            age: p.age ?? '',
             gender: p.gender || 'male',
             height_cm: p.height_cm ?? 170,
             weight_kg: p.weight_kg ?? 70,
@@ -473,17 +525,21 @@ export default function ProfilePage() {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   const canNext = () => {
-    if (step === 1) return form.name.trim().length > 0 && Number(form.age) >= 10
+    if (step === 1) return form.name.trim().length > 0 && String(form.age).trim().length > 0
     return true
   }
 
   const handleSave = async () => {
+    setSaveError(null)
+    const ageNum = parseInt(String(form.age).trim(), 10)
+    if (!form.name.trim()) { setSaveError('Name is required.'); return }
+    if (isNaN(ageNum) || ageNum < 10 || ageNum > 100) { setSaveError('Enter a valid age between 10 and 100.'); return }
     setSaving(true)
     try {
       const payload = {
         name: form.name,
         email: form.email || null,
-        age: Number(form.age),
+        age: ageNum,
         gender: form.gender,
         height_cm: Number(form.height_cm),
         weight_kg: Number(form.weight_kg),
@@ -497,7 +553,9 @@ export default function ProfilePage() {
       setEditing(false)
       navigate('/')
     } catch (e) {
-      console.error(e)
+      let msg = 'Failed to save. Please try again.'
+      try { msg = JSON.parse(e.message)?.detail || e.message || msg } catch { msg = e.message || msg }
+      setSaveError(msg)
     } finally {
       setSaving(false)
     }
@@ -552,6 +610,13 @@ export default function ProfilePage() {
         {step === 5 && <Step5 form={form} set={set} />}
         {step === 6 && <Step6 form={form} />}
       </div>
+
+      {/* Save error */}
+      {saveError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600">
+          {saveError}
+        </div>
+      )}
 
       {/* Navigation */}
       <div className="flex gap-3">

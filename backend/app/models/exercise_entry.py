@@ -1,5 +1,5 @@
 import datetime
-from sqlalchemy import Column, Integer, String, Float, Date
+from sqlalchemy import Column, Integer, String, Float, Date, DateTime
 from app.db import Base
 
 
@@ -13,3 +13,4 @@ class ExerciseEntry(Base):
     calories_burned = Column(Float, default=0)
     exercise_type = Column(String, default="cardio")
     date = Column(Date, default=datetime.date.today)
+    logged_at = Column(DateTime, nullable=True, default=datetime.datetime.utcnow)

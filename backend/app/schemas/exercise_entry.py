@@ -18,6 +18,7 @@ class ExerciseEntryCreate(ExerciseEntryBase):
 class ExerciseEntryRead(ExerciseEntryBase):
     id: int
     intensity: Optional[str] = "moderate"
+    logged_at: Optional[datetime.datetime] = None
 
     model_config = {"from_attributes": True}
 
@@ -54,6 +55,7 @@ class ExerciseLogResponse(BaseModel):
     intensity: str
     calories_burned: float
     date: datetime.date
+    logged_at: Optional[datetime.datetime] = None
 
     model_config = {"from_attributes": True}
 

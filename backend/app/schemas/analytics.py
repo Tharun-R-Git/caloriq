@@ -19,6 +19,9 @@ class DailySummaryResponse(BaseModel):
     protein_g: float
     carbs_g: float
     fat_g: float
+    protein_goal_g: int
+    carbs_goal_g: int
+    fat_goal_g: int
     recent_foods: list[RecentFood]
 
 

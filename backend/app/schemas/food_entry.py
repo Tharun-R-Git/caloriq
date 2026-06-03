@@ -9,6 +9,7 @@ class FoodAnalyzeRequest(BaseModel):
 
 
 class FoodAnalyzeResponse(BaseModel):
+    food_name: str
     calories: int
     protein_g: float
     carbs_g: float

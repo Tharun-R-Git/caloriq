@@ -33,6 +33,7 @@ async def log_exercise(db: AsyncSession, req: ExerciseLogRequest) -> ExerciseEnt
         intensity=req.intensity,
         calories_burned=calories,
         date=req.date or datetime.date.today(),
+        logged_at=datetime.datetime.utcnow(),
     )
     db.add(entry)
     await db.commit()
